@@ -109,6 +109,10 @@ you can filter directly on the search column like so:
     >>> TextDocument.objects.filter(search='spam')
     <QuerySet [<TextDocument: TextDocument object>, <TextDocument: TextDocument object>]>
 
-For more information, see the Django documentation on Full Text Search:
+For more information on querying, see the Django documentation on Full Text Search:
 
 https://docs.djangoproject.com/en/dev/ref/contrib/postgres/search/
+
+For more information on configuring how the searches work, see PostgreSQL docs:
+
+https://www.postgresql.org/docs/devel/static/textsearch.html
