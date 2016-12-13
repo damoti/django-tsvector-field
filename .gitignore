@@ -1,0 +1,4 @@
+django_tsvector_field.egg-info/
+__pycache__/
+.idea
+dist
