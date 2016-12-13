@@ -23,9 +23,8 @@ class TriggerSchemaEditor(DatabaseSchemaEditor):
             self.deferred_sql.extend(self._drop_tsvector_trigger(model, field))
 
     def alter_field(self, model, old_field, new_field, strict=False):
-        if isinstance(old_field, SearchVectorField) or isinstance(new_field, SearchVectorField):
-            self.deferred_sql.extend(self._drop_tsvector_trigger(model, old_field))
-            self.deferred_sql.extend(self._create_tsvector_trigger(model, new_field))
+        self.remove_field(model, old_field)
+        self.add_field(model, new_field)
 
     def _tsvector_setweight(self, field):
 
