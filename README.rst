@@ -88,6 +88,8 @@ appear higher in the results.
 
 .. code-block:: python
 
+    >>> from django.contrib.postgres.search import SearchQuery, SearchRank
+    >>> from django.db.models.expressions import F
     >>> matches = TextDocument.objects\
     ...     .annotate(rank=SearchRank(F('search'), SearchQuery('spam')))\
     ...     .order_by('-rank')\
