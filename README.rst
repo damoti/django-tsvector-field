@@ -80,7 +80,7 @@ continue with the previous session and create another document.
     "'eat':4A 'eel':3A 'love':9 'spam':5,6,7,10"
 
 
-No we have two documents: first document has just one ``spam`` with weight ``A`` and
+Now we have two documents: first document has just one ``spam`` with weight ``A`` and
 the second document has 4 ``spam`` with lower weight. If we search for ``spam`` and apply
 a search rank then the ``A`` weight on the first document will cause that document to
 appear higher in the results.
