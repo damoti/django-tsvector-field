@@ -14,7 +14,7 @@ Installation
 
 .. _installation:
 
-**Python 3+**, **Django 1.10+** and **psycopg2** are the only requirements:
+**Python 3+**, **Django 1.11+** and **psycopg2** are the only requirements:
 
 1. Install **django-tsvector-field** with your favorite python tool, e.g. ``pip install django-tsvector-field``.
 
@@ -109,4 +109,4 @@ you can filter directly on the search column like so:
 
 For more information, see the Django documentation on Full Text Search:
 
-https://docs.djangoproject.com/en/1.10/ref/contrib/postgres/search/
+https://docs.djangoproject.com/en/dev/ref/contrib/postgres/search/
