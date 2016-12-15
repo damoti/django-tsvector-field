@@ -1,20 +1,18 @@
 from django.db.migrations.operations.base import Operation
 
-from .schema import TriggerSchemaEditor
+from .schema import DatabaseTriggerEditor
 
 
-class TriggerOperation(Operation):
+class _TriggerEditorOperation(Operation):
 
     def state_forwards(self, app_label, state):
         pass
 
     def database_forwards(self, app_label, schema_editor, from_state, to_state):
-        with TriggerSchemaEditor(schema_editor.connection) as trigger_editor:
-            super().database_forwards(app_label, trigger_editor, from_state, to_state)
+        super().database_forwards(app_label, DatabaseTriggerEditor(schema_editor), from_state, to_state)
 
     def database_backwards(self, app_label, schema_editor, from_state, to_state):
-        with TriggerSchemaEditor(schema_editor.connection) as trigger_editor:
-            super().database_backwards(app_label, trigger_editor, from_state, to_state)
+        super().database_backwards(app_label, DatabaseTriggerEditor(schema_editor), from_state, to_state)
 
 
 def inject_trigger_operations(plan=None, **kwargs):
@@ -28,7 +26,7 @@ def inject_trigger_operations(plan=None, **kwargs):
         for index, operation in enumerate(migration.operations):
             clsname, args, kwargs = operation.deconstruct()
             if clsname in ('CreateModel', 'DeleteModel', 'AddField', 'RemoveField', 'AlterField'):
-                newop = type('CreateOrDropTrigger', (TriggerOperation, operation.__class__), {})
+                newop = type('TriggerEditorOperation', (_TriggerEditorOperation, operation.__class__), {})
                 if clsname in ('DeleteModel', 'RemoveField'):
                     # inject operation ahead of the original as we
                     # need to introspect the not-yet-deleted field

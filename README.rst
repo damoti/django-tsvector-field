@@ -6,7 +6,8 @@ django-tsvector-field
 
 **django-tsvector-field** is a drop-in replacement for Django's
 ``django.contrib.postgres.search.SearchVectorField`` and manages the
-database triggers to keep your ``tsvector`` columns updated automatically.
+database triggers to keep your search field updated automatically in
+the background.
 
 
 Installation
@@ -14,12 +15,46 @@ Installation
 
 .. _installation:
 
-**Python 3+**, **Django 1.11+** and **psycopg2** are the only requirements:
+**Python 3+**, **Django 1.11+** and **psycopg2** are the only requirements.
 
-1. Install **django-tsvector-field** with your favorite python tool, e.g. ``pip install django-tsvector-field``.
+Install **django-tsvector-field** with your favorite python tool, e.g. ``pip install django-tsvector-field``.
 
-2. Add ``tsvector`` to your ``INSTALLED_APPS`` setting.
+You have two options to integrate **django-tsvector-field** into your project:
 
+1. Simply add ``tsvector`` to your ``INSTALLED_APPS`` and start using it. This method
+   uses Django's ``pre_migrate`` signal to inject the database operations into
+   your migrations. This will work fine for most people.
+
+   Warning: You'll run into issues with this method if you have unmigrated apps
+   or you have disabled migrations for your unit tests. The problem is related
+   to the fact that Django does not send ``pre_migrate`` signal for apps that
+   do not have explicit migrations.
+
+2. Less simple but more reliable method is to create your own database engine
+   and to subclass the **django-tsvector-field** ``tsvector_field.DatabaseSchemaEditor``.
+
+   Create a 'db' directory in your Django project with an `__init__.py` and a `base.py`
+   with the following contents:
+
+   .. code-block:: python
+
+        from django.db.backends.postgresql import base
+        import postgres_schema
+
+        class DatabaseWrapper(base.DatabaseWrapper):
+            SchemaEditorClass = tsvector_schema.DatabaseSchemaEditor
+
+    Then update the ``'ENGINE'`` configuration in your ``DATABASE`` settings. For example,
+    if your project is called ``my_project`` and it has the ``db`` directory as described
+    above, then change your ``DATABASE`` setting to look like this:
+
+   .. code-block:: python
+
+        DATABASES = {
+            'default': {
+                'ENGINE': 'your_project.db',
+            }
+        }
 
 Usage
 =====

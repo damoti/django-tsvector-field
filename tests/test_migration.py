@@ -4,9 +4,10 @@ from django.db.migrations.writer import MigrationWriter
 from django.test import TestCase
 from django.test.utils import isolate_apps
 
-from tsvector import SearchVectorField, WeightedColumn
-from tsvector.migrate import inject_trigger_operations
-from tsvector.schema import TriggerSchemaEditor
+from tsvector_field import SearchVectorField, WeightedColumn
+from tsvector_field.receivers import inject_trigger_operations
+from tsvector_field.schema import DatabaseSchemaEditor, DatabaseTriggerEditor
+from tsvector_field.operations import IndexSearchVector
 
 
 @isolate_apps('tests')
@@ -15,8 +16,8 @@ class MigrationWriterTests(TestCase):
     def test_deconstruct_with_no_arguments(self):
         svf = SearchVectorField()
         self.assertEqual(
-            ("tsvector.SearchVectorField()",
-             {'import tsvector'}),
+            ("tsvector_field.SearchVectorField()",
+             {'import tsvector_field'}),
             MigrationWriter.serialize(svf)
         )
 
@@ -30,16 +31,16 @@ class MigrationWriterTests(TestCase):
         definition, path = MigrationWriter.serialize(svf)
 
         self.assertEqual(
-            "tsvector.SearchVectorField("
+            "tsvector_field.SearchVectorField("
             "columns=["
-            "tsvector.WeightedColumn('name', 'A'), "
-            "tsvector.WeightedColumn('description', 'D')]"
+            "tsvector_field.WeightedColumn('name', 'A'), "
+            "tsvector_field.WeightedColumn('description', 'D')]"
             ")",
             definition
         )
 
         self.assertSetEqual(
-            {'import tsvector'},
+            {'import tsvector_field'},
             path
         )
 
@@ -54,7 +55,7 @@ class MigrationWriterTests(TestCase):
         name, path, args, kwargs = TextDocument._meta.get_field('svf').deconstruct()
 
         self.assertEqual(name, "svf")
-        self.assertEqual(path, "tsvector.SearchVectorField")
+        self.assertEqual(path, "tsvector_field.SearchVectorField")
         self.assertFalse(args)
         self.assertSetEqual(set(kwargs.keys()), {
             'columns', 'language', 'language_column', 'force_update'
@@ -64,13 +65,17 @@ class MigrationWriterTests(TestCase):
 @isolate_apps('tests')
 class SchemaEditorTests(TestCase):
 
+    @property
+    def trigger_editor(self):
+        with DatabaseSchemaEditor(connection) as schema_editor:
+            return DatabaseTriggerEditor(schema_editor)
+
     def test_sql_setweight(self):
 
         def check_sql(model, sql):
-            trigger_editor = TriggerSchemaEditor(connection)
             field = model._meta.get_field('search')
             self.assertEqual(
-                sql, trigger_editor._tsvector_setweight(field)
+                sql, self.trigger_editor._to_tsvector_weights(field)
             )
 
         class WithLanguageTwoColumn(models.Model):
@@ -96,26 +101,26 @@ class SchemaEditorTests(TestCase):
 
         check_sql(
             WithLanguageTwoColumn, [
-                """setweight(to_tsvector('ukrainian', COALESCE(NEW."title", '')), 'A') ||""",
-                """setweight(to_tsvector('ukrainian', COALESCE(NEW."body", '')), 'D');"""
+                """ setweight(to_tsvector('ukrainian', COALESCE(NEW."title", '')), 'A') ||""",
+                """ setweight(to_tsvector('ukrainian', COALESCE(NEW."body", '')), 'D');"""
             ]
         )
 
         check_sql(
             WithLanguage, [
-                """setweight(to_tsvector('ukrainian', COALESCE(NEW."body", '')), 'D');"""
+                """ setweight(to_tsvector('ukrainian', COALESCE(NEW."body", '')), 'D');"""
             ]
         )
 
         check_sql(
             WithLanguageColumn, [
-                """setweight(to_tsvector(NEW."lang"::regconfig, COALESCE(NEW."body", '')), 'D');"""
+                """ setweight(to_tsvector(NEW."lang"::regconfig, COALESCE(NEW."body", '')), 'D');"""
             ]
         )
 
         check_sql(
             WithLanguageAndLanguageColumn, [
-                """setweight(to_tsvector(COALESCE(NEW."lang"::regconfig, 'ukrainian'),"""
+                """ setweight(to_tsvector(COALESCE(NEW."lang"::regconfig, 'ukrainian'),"""
                 """ COALESCE(NEW."body", '')), 'D');"""
             ]
         )
@@ -123,10 +128,9 @@ class SchemaEditorTests(TestCase):
     def test_sql_update_column_checks(self):
 
         def check_sql(model, sql):
-            trigger_editor = TriggerSchemaEditor(connection)
             field = model._meta.get_field('search')
             self.assertEqual(
-                sql, trigger_editor._tsvector_update_column_checks(field)
+                sql, list(self.trigger_editor._to_tsvector_preconditions(field))
             )
 
         class OneColumn(models.Model):
@@ -143,27 +147,34 @@ class SchemaEditorTests(TestCase):
 
         check_sql(
             OneColumn, [
-                'IF (NEW."name" <> OLD."name") THEN do_update = true;',
-                'END IF;'
+                "IF (TG_OP = 'INSERT') THEN do_update = true;",
+                "ELSIF (TG_OP = 'UPDATE') THEN",
+                ' IF (NEW."search" IS NULL) THEN do_update = true;',
+                ' ELSIF (NEW."name" <> OLD."name") THEN do_update = true;',
+                ' END IF;',
+                'END IF;',
             ]
         )
 
         check_sql(
             ThreeColumns, [
-                'IF (NEW."name" <> OLD."name") THEN do_update = true;',
-                'ELSIF (NEW."title" <> OLD."title") THEN do_update = true;',
-                'ELSIF (NEW."body" <> OLD."body") THEN do_update = true;',
-                'END IF;'
+                "IF (TG_OP = 'INSERT') THEN do_update = true;",
+                "ELSIF (TG_OP = 'UPDATE') THEN",
+                ' IF (NEW."search" IS NULL) THEN do_update = true;',
+                ' ELSIF (NEW."name" <> OLD."name") THEN do_update = true;',
+                ' ELSIF (NEW."title" <> OLD."title") THEN do_update = true;',
+                ' ELSIF (NEW."body" <> OLD."body") THEN do_update = true;',
+                ' END IF;',
+                'END IF;',
             ]
         )
 
     def test_sql_update_function(self):
 
         def check_sql(model, sql):
-            trigger_editor = TriggerSchemaEditor(connection)
             field = model._meta.get_field('search')
             self.assertEqual(
-                sql, trigger_editor._create_tsvector_update_function('thefunction', field)
+                sql, self.trigger_editor._create_function('thefunction()', field)
             )
 
         class TextDocument(models.Model):
@@ -172,6 +183,7 @@ class SchemaEditorTests(TestCase):
                 WeightedColumn('body', 'D'),
             ], 'english')
 
+        self.maxDiff = None
         check_sql(
             TextDocument,
             "CREATE FUNCTION thefunction() RETURNS trigger AS $$\n"
@@ -180,7 +192,8 @@ class SchemaEditorTests(TestCase):
             "BEGIN\n"
             " IF (TG_OP = 'INSERT') THEN do_update = true;\n"
             " ELSIF (TG_OP = 'UPDATE') THEN\n"
-            '  IF (NEW."title" <> OLD."title") THEN do_update = true;\n'
+            '  IF (NEW."search" IS NULL) THEN do_update = true;\n'
+            '  ELSIF (NEW."title" <> OLD."title") THEN do_update = true;\n'
             '  ELSIF (NEW."body" <> OLD."body") THEN do_update = true;\n'
             "  END IF;\n"
             " END IF;\n"
@@ -220,14 +233,10 @@ class SchemaEditorTests(TestCase):
         class NoWeightedColumns(models.Model):
             search = SearchVectorField()
 
-        with connection.schema_editor() as schema_editor:
+        with DatabaseSchemaEditor(connection) as schema_editor:
             schema_editor.create_model(NoWeightedColumns)
             self.assertEqual(len(schema_editor.deferred_sql), 1)
             self.assertIn('CREATE INDEX', schema_editor.deferred_sql[0])
-
-        with TriggerSchemaEditor(connection) as schema_editor:
-            schema_editor.create_model(NoWeightedColumns)
-            self.assertEqual(len(schema_editor.deferred_sql), 0)
 
     def test_create_model(self):
 
@@ -237,50 +246,15 @@ class SchemaEditorTests(TestCase):
                 WeightedColumn('title', 'A'),
             ], 'english')
 
-        with connection.schema_editor() as schema_editor:
+        with DatabaseSchemaEditor(connection) as schema_editor:
             schema_editor.create_model(TextDocument)
-            self.assertEqual(len(schema_editor.deferred_sql), 1)
+            self.assertEqual(len(schema_editor.deferred_sql), 3)
             self.assertIn('CREATE INDEX', schema_editor.deferred_sql[0])
-
-        with TriggerSchemaEditor(connection) as schema_editor:
-            schema_editor.create_model(TextDocument)
-            self.assertEqual(len(schema_editor.deferred_sql), 2)
-            self.assertIn('CREATE FUNCTION', schema_editor.deferred_sql[0])
-            self.assertIn('CREATE TRIGGER', schema_editor.deferred_sql[1])
+            self.assertIn('CREATE FUNCTION', schema_editor.deferred_sql[1])
+            self.assertIn('CREATE TRIGGER', schema_editor.deferred_sql[2])
 
 
-@isolate_apps('tests', attr_name='apps')
-class MigrationTests(TestCase):
-
-    create_model = migrations.CreateModel(
-        'textdocument', [
-            ('title', models.CharField(max_length=128)),
-            ('body', models.TextField()),
-            ('search', SearchVectorField([WeightedColumn('body', 'A')], 'english')),
-        ]
-    )
-
-    delete_model = migrations.DeleteModel('textdocument')
-
-    create_model_without_search = migrations.CreateModel(
-        'textdocument', [
-            ('body', models.TextField()),
-        ]
-    )
-
-    add_field = migrations.AddField(
-        'textdocument', 'search',
-        SearchVectorField([WeightedColumn('body', 'A')], 'english')
-    )
-
-    alter_field = migrations.AlterField(
-        'textdocument', 'search',
-        SearchVectorField([WeightedColumn('title', 'A'), WeightedColumn('body', 'D')], 'english')
-    )
-
-    remove_field = migrations.RemoveField(
-        'textdocument', 'search'
-    )
+class MigrationTestCase(TestCase):
 
     def migrate(self, ops, state=None):
         class Migration(migrations.Migration):
@@ -289,57 +263,6 @@ class MigrationTests(TestCase):
         inject_trigger_operations([(migration, False)])
         with connection.schema_editor() as schema_editor:
             return migration.apply(state or ProjectState.from_apps(self.apps), schema_editor)
-
-    def test_create_model(self):
-        self.assertFITNotExists()
-        self.migrate([
-            self.create_model
-        ])
-        self.assertFITExists()
-
-    def test_add_field(self):
-        self.assertFITNotExists()
-        state = self.migrate([
-            self.create_model_without_search
-        ])
-        self.assertFITNotExists()
-        self.migrate([
-            self.add_field
-        ], state)
-        self.assertFITExists()
-
-    def test_remove_field(self):
-        self.assertFITNotExists()
-        state = self.migrate([
-            self.create_model
-        ])
-        self.assertFITExists()
-        self.migrate([
-            self.remove_field
-        ], state)
-        self.assertFITNotExists()
-
-    def test_alter_field(self):
-        state = self.migrate([
-            self.create_model
-        ])
-        self.assertFITExists()
-        self.assertNotIn('title', self.get_function_src('search'))
-        self.migrate([
-            self.alter_field
-        ], state)
-        self.assertFITExists()
-        self.assertIn('title', self.get_function_src('search'))
-
-    def test_delete_model(self):
-        state = self.migrate([
-            self.create_model
-        ])
-        self.assertFITExists()
-        self.migrate([
-            self.delete_model
-        ], state)
-        self.assertFITNotExists()
 
     SEARCH_COL = 'tests_{table}_{column}_.{{8}}'
     FIT = [SEARCH_COL + '_func', SEARCH_COL, SEARCH_COL + '_trig']
@@ -396,3 +319,128 @@ class MigrationTests(TestCase):
         with connection.cursor() as cursor:
             cursor.execute("select prosrc from pg_proc where proname ~ %s", [func])
             return cursor.fetchone()[0]
+
+
+@isolate_apps('tests', attr_name='apps')
+class MigrationTests(MigrationTestCase):
+
+    create_model = migrations.CreateModel(
+        'textdocument', [
+            ('title', models.CharField(max_length=128)),
+            ('body', models.TextField()),
+            ('search', SearchVectorField([WeightedColumn('body', 'A')], 'english')),
+        ]
+    )
+
+    delete_model = migrations.DeleteModel('textdocument')
+
+    create_model_without_search = migrations.CreateModel(
+        'textdocument', [
+            ('body', models.TextField()),
+        ]
+    )
+
+    add_field = migrations.AddField(
+        'textdocument', 'search',
+        SearchVectorField([WeightedColumn('body', 'A')], 'english')
+    )
+
+    alter_field = migrations.AlterField(
+        'textdocument', 'search',
+        SearchVectorField([WeightedColumn('title', 'A'), WeightedColumn('body', 'D')], 'english')
+    )
+
+    remove_field = migrations.RemoveField(
+        'textdocument', 'search'
+    )
+
+    def test_create_model(self):
+        self.assertFITNotExists()
+        self.migrate([
+            self.create_model
+        ])
+        self.assertFITExists()
+
+    def test_add_field(self):
+        self.assertFITNotExists()
+        state = self.migrate([
+            self.create_model_without_search
+        ])
+        self.assertFITNotExists()
+        self.migrate([
+            self.add_field
+        ], state)
+        self.assertFITExists()
+
+    def test_remove_field(self):
+        self.assertFITNotExists()
+        state = self.migrate([
+            self.create_model
+        ])
+        self.assertFITExists()
+        self.migrate([
+            self.remove_field
+        ], state)
+        self.assertFITNotExists()
+
+    def test_alter_field(self):
+        state = self.migrate([
+            self.create_model
+        ])
+        self.assertFITExists()
+        self.assertNotIn('title', self.get_function_src('search'))
+        self.migrate([
+            self.alter_field
+        ], state)
+        self.assertFITExists()
+        self.assertIn('title', self.get_function_src('search'))
+
+    def test_delete_model(self):
+        state = self.migrate([
+            self.create_model
+        ])
+        self.assertFITExists()
+        self.migrate([
+            self.delete_model
+        ], state)
+        self.assertFITNotExists()
+
+
+@isolate_apps('tests', attr_name='apps')
+class DataMigrationTests(MigrationTestCase):
+
+    create_model = migrations.CreateModel(
+        'textdocument', [
+            ('body', models.TextField()),
+        ]
+    )
+
+    add_field = migrations.AddField(
+        'textdocument', 'search',
+        SearchVectorField([
+            WeightedColumn('body', 'A')
+        ], 'english')
+    )
+
+    run_indexer = IndexSearchVector(
+        'textdocument', 'search'
+    )
+
+    def initial_state(self):
+        state = self.migrate([self.create_model])
+        state.apps.get_model('tests.textdocument').objects.create(
+            body="My hovercraft is full of eels."
+        )
+        return state
+
+    def test_add_field_no_data_migration(self):
+        state = self.initial_state()
+        self.migrate([self.add_field], state)
+        doc = state.apps.get_model('tests.textdocument').objects.first()
+        self.assertIsNone(doc.search)
+
+    def test_add_field_including_data_migration(self):
+        state = self.initial_state()
+        self.migrate([self.add_field, self.run_indexer], state)
+        doc = state.apps.get_model('tests.textdocument').objects.first()
+        self.assertEqual(doc.search, "'eel':6A 'full':4A 'hovercraft':2A")

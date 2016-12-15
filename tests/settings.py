@@ -1,11 +1,11 @@
 INSTALLED_APPS = [
-    'tsvector',
+    'tsvector_field',
     'tests'
 ]
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'tsvector',
+        'NAME': 'tsvector_field',
         'TEST': {
             'SERIALIZE': False
         }

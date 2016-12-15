@@ -32,6 +32,6 @@ setup(
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
     packages=[
-        'tsvector',
+        'tsvector_field',
     ],
 )

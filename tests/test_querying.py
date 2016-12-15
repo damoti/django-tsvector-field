@@ -6,8 +6,9 @@ from django.db.models.expressions import F
 from django.test import TestCase
 from django.test.utils import isolate_apps
 
-from tsvector import SearchVectorField, WeightedColumn
-from tsvector.schema import TriggerSchemaEditor
+from tsvector_field.query import Headline
+from tsvector_field.fields import SearchVectorField, WeightedColumn
+from tsvector_field.schema import DatabaseSchemaEditor
 
 
 @isolate_apps('tests')
@@ -29,11 +30,7 @@ class TriggerTests(TestCase):
                 WeightedColumn('body', 'D'),
             ], language_column='lang', language='english')
 
-        with connection.schema_editor() as schema_editor:
-            schema_editor.create_model(TextDocument)
-            schema_editor.create_model(TextDocumentLanguageColumn)
-
-        with TriggerSchemaEditor(connection) as schema_editor:
+        with DatabaseSchemaEditor(connection) as schema_editor:
             schema_editor.create_model(TextDocument)
             schema_editor.create_model(TextDocumentLanguageColumn)
 
@@ -120,9 +117,7 @@ class QueryTests(TestCase):
                 WeightedColumn('body', 'D'),
             ], 'english')
 
-        with connection.schema_editor() as schema_editor:
-            schema_editor.create_model(TextDocument)
-        with TriggerSchemaEditor(connection) as schema_editor:
+        with DatabaseSchemaEditor(connection) as schema_editor:
             schema_editor.create_model(TextDocument)
 
         TextDocument.objects.create(
@@ -151,6 +146,45 @@ class QueryTests(TestCase):
     def test_rank_search(self):
         self.assertEqual(self.ranked_search('hovercraft'), [1, 2])
         self.assertEqual(self.ranked_search('spam'), [2, 1])
+
+
+@isolate_apps('tests')
+class HeadlineTests(TestCase):
+
+    def setUp(self):
+
+        class TextDocument(models.Model):
+            title = models.CharField(max_length=128)
+            body = models.TextField()
+            search = SearchVectorField([
+                WeightedColumn('title', 'A'),
+                WeightedColumn('body', 'D'),
+            ], 'english')
+
+        with DatabaseSchemaEditor(connection) as schema_editor:
+            schema_editor.create_model(TextDocument)
+
+        TextDocument.objects.create(
+            title="My hovercraft is full of eels.",
+            body="Spam! Spam! Spam! Spam! Spam! Spam!",
+        )
+        TextDocument.objects.create(
+            title="Spam! Spam! Spam! Spam! Spam! Spam!",
+            body="My hovercraft is full of eels."
+        )
+        self.objects = TextDocument.objects
+
+    def test_headline(self):
+        query = SearchQuery('hovercraft')
+        result = list(
+            self.objects
+                .annotate(match=Headline(F('title'), query))
+                .values_list('match', flat=True)
+        )
+        self.assertEqual(result, [
+            'My <b>hovercraft</b> is full of eels.',
+            'Spam! Spam! Spam! Spam! Spam! Spam!',
+        ])
 
 
 HOLY_GRAIL = """

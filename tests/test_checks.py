@@ -2,7 +2,7 @@ from django.db import models
 from django.test import TestCase
 from django.test.utils import isolate_apps
 
-from tsvector import SearchVectorField, WeightedColumn
+from tsvector_field import SearchVectorField, WeightedColumn
 
 
 @isolate_apps('tests')

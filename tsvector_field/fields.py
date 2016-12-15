@@ -38,7 +38,7 @@ class WeightedColumn:
             )
 
     def deconstruct(self):
-        path = "tsvector.{}".format(self.__class__.__name__)
+        path = "tsvector_field.{}".format(self.__class__.__name__)
         return path, [force_text(self.name), force_text(self.weight)], {}
 
 
@@ -65,7 +65,7 @@ class SearchVectorField(OriginalSearchVectorField):
             kwargs['force_update'] = self.force_update
         del kwargs['db_index']
         del kwargs['null']
-        return name, "tsvector.{}".format(self.__class__.__name__), args, kwargs
+        return name, "tsvector_field.{}".format(self.__class__.__name__), args, kwargs
 
     def check(self, **kwargs):
         errors = super().check(**kwargs)
