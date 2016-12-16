@@ -168,7 +168,6 @@ then to add search capability we would use the following migration:
 .. code-block:: python
 
     from django.db import migrations, models
-    import django.db.models.deletion
     import tsvector_field
 
     class Migration(migrations.Migration):
