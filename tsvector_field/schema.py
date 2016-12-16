@@ -5,38 +5,18 @@ from django.db.backends.postgresql.schema import DatabaseSchemaEditor as Postgre
 class DatabaseSchemaEditor(PostgreSQLBaseSchemaEditor):
     """
 
-    Use this class in your Django project if you have your own
-    DatabaseSchemaEditor and you want to mixin support for tsvector_field.
-    You can either inherit from this DatabaseSchemaEditor directly or
-    if you want to keep some separation you can use the following pattern
-    in your base.py file:
+    A nice trick to managing multiple schema editors in your project is to
+    merge them using the type() function like so (as long as all the editors
+    properly call super() in the overloaded methods):
 
-        import postgres_schema
+        import tsvector_field
         from . import schema as your_app_schema
 
         class DatabaseWrapper(base.DatabaseWrapper):
             SchemaEditorClass = type('DatabaseSchemaEditor', (
-                tsvector_schema.DatabaseSchemaEditor,
+                tsvector_field.DatabaseSchemaEditor,
                 your_app_schema.DatabaseSchemaEditor,
             ), {})
-
-    If you're only using the tsvector_schema, then this will suffice:
-
-        import postgres_schema
-
-        class DatabaseWrapper(base.DatabaseWrapper):
-            SchemaEditorClass = tsvector_schema.DatabaseSchemaEditor
-
-    Just put the above class in base.py and reference the package which
-    contains the base.py file in the 'ENGINE' property in your DATABASE_SETTINGS.
-    If you have a directory at the root of your project called 'db' and you place
-    base.py (along with blank __init__.py) there then you can refer to it like so:
-
-        DATABASES = {
-            'default': {
-                'ENGINE': 'your_project.db',
-            }
-        }
 
     """
 
