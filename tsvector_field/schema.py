@@ -1,8 +1,8 @@
 from tsvector_field import SearchVectorField
-from django.db.backends.postgresql.schema import DatabaseSchemaEditor as PostgreSQLBaseSchemaEditor
+from django.db.backends.postgresql.schema import DatabaseSchemaEditor as PostgreSQLSchemaEditor
 
 
-class DatabaseSchemaEditor(PostgreSQLBaseSchemaEditor):
+class DatabaseSchemaEditor(PostgreSQLSchemaEditor):
     """
 
     A nice trick to managing multiple schema editors in your project is to
@@ -66,7 +66,7 @@ class DatabaseTriggerEditor:
 
     def create_model(self, model):
         for field in model._meta.local_fields:
-            if isinstance(field, SearchVectorField) and field.columns:
+            if isinstance(field, SearchVectorField):
                 self.deferred_sql.extend(self._create_tsvector(model, field))
 
     def delete_model(self, model):
@@ -75,7 +75,7 @@ class DatabaseTriggerEditor:
                 self.deferred_sql.extend(self._drop_tsvector(model, field))
 
     def add_field(self, model, field):
-        if isinstance(field, SearchVectorField) and field.columns:
+        if isinstance(field, SearchVectorField):
             self.deferred_sql.extend(self._create_tsvector(model, field))
 
     def remove_field(self, model, field):
@@ -88,6 +88,7 @@ class DatabaseTriggerEditor:
 
     def get_names(self, model, field):
         return (
+            self._create_index_name(model, [field.column], '_tsvector'),
             self._create_index_name(model, [field.column], '_function')+'()',
             self._create_index_name(model, [field.column], '_trigger')
         )
@@ -164,6 +165,10 @@ class DatabaseTriggerEditor:
             to_tsvector='\n  '.join(self._to_tsvector(field))
         )
 
+    sql_create_index = (
+        "CREATE INDEX {index} ON {table} USING {index_type} ({column})"
+    )
+
     sql_create_trigger = (
         "CREATE TRIGGER {trigger} BEFORE INSERT OR UPDATE"
         " ON {table} FOR EACH ROW EXECUTE PROCEDURE {function}"
@@ -171,10 +176,18 @@ class DatabaseTriggerEditor:
 
     def _create_tsvector(self, model, field):
 
-        assert field.columns, "Cannot create text search trigger without 'columns'."
-
-        function, trigger = self.get_names(model, field)
+        index, function, trigger = self.get_names(model, field)
         table = self.quote_name(model._meta.db_table)
+
+        yield self.sql_create_index.format(
+            index=self.quote_name(index),
+            table=table,
+            index_type='GIN',
+            column=self.quote_name(field.column)
+        )
+
+        if not field.columns:
+            return
 
         yield self._create_function(function, field)
 
@@ -186,7 +199,7 @@ class DatabaseTriggerEditor:
 
     def _drop_tsvector(self, model, field):
 
-        function, trigger = self.get_names(model, field)
+        index, function, trigger = self.get_names(model, field)
         table = self.quote_name(model._meta.db_table)
 
         yield "DROP TRIGGER IF EXISTS {trigger} ON {table}".format(
@@ -195,4 +208,8 @@ class DatabaseTriggerEditor:
 
         yield "DROP FUNCTION IF EXISTS {function}".format(
             function=function,
+        )
+
+        yield "DROP INDEX IF EXISTS {index}".format(
+            index=index
         )

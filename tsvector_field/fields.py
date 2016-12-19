@@ -49,7 +49,7 @@ class SearchVectorField(OriginalSearchVectorField):
         self.language = language
         self.language_column = kwargs.pop('language_column', None)
         self.force_update = kwargs.pop('force_update', False)
-        kwargs['db_index'] = True
+        kwargs['db_index'] = False  # we create GIN index ourselves
         kwargs['null'] = True
         super().__init__(*args, **kwargs)
 
@@ -63,7 +63,6 @@ class SearchVectorField(OriginalSearchVectorField):
             kwargs['language_column'] = force_text(self.language_column)
         if self.force_update is not False:
             kwargs['force_update'] = self.force_update
-        del kwargs['db_index']
         del kwargs['null']
         return name, "tsvector_field.{}".format(self.__class__.__name__), args, kwargs
 

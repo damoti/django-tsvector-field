@@ -237,6 +237,7 @@ class SchemaEditorTests(TestCase):
             schema_editor.create_model(NoWeightedColumns)
             self.assertEqual(len(schema_editor.deferred_sql), 1)
             self.assertIn('CREATE INDEX', schema_editor.deferred_sql[0])
+            self.assertIn('GIN', schema_editor.deferred_sql[0])
 
     def test_create_model(self):
 
@@ -250,6 +251,7 @@ class SchemaEditorTests(TestCase):
             schema_editor.create_model(TextDocument)
             self.assertEqual(len(schema_editor.deferred_sql), 3)
             self.assertIn('CREATE INDEX', schema_editor.deferred_sql[0])
+            self.assertIn('GIN', schema_editor.deferred_sql[0])
             self.assertIn('CREATE FUNCTION', schema_editor.deferred_sql[1])
             self.assertIn('CREATE TRIGGER', schema_editor.deferred_sql[2])
 
