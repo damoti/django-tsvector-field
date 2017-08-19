@@ -16,7 +16,7 @@ setup(
     name='django-tsvector-field',
     version='0.9.3',
     url='https://github.com/damoti/django-tsvector-field',
-    license='MIT',
+    license='BSD',
     description='Django field implementation for PostgreSQL tsvector.',
     long_description=long_description,
     author='Lex Berezhny',
