@@ -1,3 +1,5 @@
+|pypi| |travis| |coverage|
+
 =====================
 django-tsvector-field
 =====================
@@ -194,3 +196,16 @@ https://docs.djangoproject.com/en/dev/ref/contrib/postgres/search/
 For more information on configuring how the searches work, see PostgreSQL docs:
 
 https://www.postgresql.org/docs/devel/static/textsearch.html
+
+
+.. |pypi| image:: https://img.shields.io/pypi/v/django-tsvector-field.svg
+   :target: https://pypi.python.org/pypi/django-tsvector-field
+   :alt: Package
+
+.. |travis| image:: https://travis-ci.org/damoti/django-tsvector-field.svg?branch=master
+   :target: https://travis-ci.org/damoti/django-tsvector-field
+   :alt: Build
+
+.. |coverage| image:: https://codecov.io/gh/damoti/django-tsvector-field/branch/master/graph/badge.svg
+   :target: https://codecov.io/gh/damoti/django-tsvector-field
+   :alt: Test Coverage
