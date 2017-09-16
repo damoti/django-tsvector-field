@@ -5,7 +5,7 @@ from django.test.utils import isolate_apps
 from tsvector_field import SearchVectorField, WeightedColumn
 
 
-@isolate_apps('tests')
+@isolate_apps('tsvector_test_app')
 class CheckTests(TestCase):
 
     def test_without_arguments(self):

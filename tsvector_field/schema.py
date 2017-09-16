@@ -1,5 +1,6 @@
 from tsvector_field import SearchVectorField
 from django.db.backends.postgresql.schema import DatabaseSchemaEditor as PostgreSQLSchemaEditor
+from django import VERSION as DJANGO_VERSION
 
 
 class DatabaseSchemaEditor(PostgreSQLSchemaEditor):
@@ -62,7 +63,10 @@ class DatabaseTriggerEditor:
         return self.schema_editor.connection
 
     def _create_index_name(self, model, column_names, suffix=""):
-        return self.schema_editor._create_index_name(model, column_names, suffix)
+        if DJANGO_VERSION >= (2,):
+            return self.schema_editor._create_index_name(model._meta.db_table, column_names, suffix)
+        else:
+            return self.schema_editor._create_index_name(model, column_names, suffix)
 
     def create_model(self, model):
         for field in model._meta.local_fields:

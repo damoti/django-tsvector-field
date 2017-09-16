@@ -1,2 +1,2 @@
-git+https://github.com/django/django.git@8db6a6c
+django
 psycopg2

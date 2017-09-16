@@ -10,7 +10,7 @@ from tsvector_field.schema import DatabaseSchemaEditor, DatabaseTriggerEditor
 from tsvector_field.operations import IndexSearchVector
 
 
-@isolate_apps('tests')
+@isolate_apps('tsvector_test_app')
 class MigrationWriterTests(TestCase):
 
     def test_deconstruct_with_no_arguments(self):
@@ -62,7 +62,7 @@ class MigrationWriterTests(TestCase):
         })
 
 
-@isolate_apps('tests')
+@isolate_apps('tsvector_test_app')
 class SchemaEditorTests(TestCase):
 
     @property
@@ -323,7 +323,7 @@ class MigrationTestCase(TestCase):
             return cursor.fetchone()[0]
 
 
-@isolate_apps('tests', attr_name='apps')
+@isolate_apps('tsvector_test_app', attr_name='apps')
 class MigrationTests(MigrationTestCase):
 
     create_model = migrations.CreateModel(
@@ -408,7 +408,7 @@ class MigrationTests(MigrationTestCase):
         self.assertFITNotExists()
 
 
-@isolate_apps('tests', attr_name='apps')
+@isolate_apps('tsvector_test_app', attr_name='apps')
 class DataMigrationTests(MigrationTestCase):
 
     create_model = migrations.CreateModel(

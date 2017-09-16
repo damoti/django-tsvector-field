@@ -1,3 +1,8 @@
+0.9.4
+-----
+
+* Initial support django 2.0 alpha
+
 0.9.3
 -----
 

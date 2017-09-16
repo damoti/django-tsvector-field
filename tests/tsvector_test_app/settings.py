@@ -1,7 +1,7 @@
-INSTALLED_APPS = [
+INSTALLED_APPS = (
     'tsvector_field',
-    'tests'
-]
+    'tsvector_test_app'
+)
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -11,5 +11,4 @@ DATABASES = {
         }
     }
 }
-DEBUG = True
 SECRET_KEY = 'test-key'

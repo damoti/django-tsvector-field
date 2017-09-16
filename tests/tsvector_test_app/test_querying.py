@@ -11,7 +11,7 @@ from tsvector_field.fields import SearchVectorField, WeightedColumn
 from tsvector_field.schema import DatabaseSchemaEditor
 
 
-@isolate_apps('tests')
+@isolate_apps('tsvector_test_app')
 class TriggerTests(TestCase):
 
     def setUp(self):
@@ -104,7 +104,7 @@ class TriggerTests(TestCase):
         self.assertEqual(doc.search, "'eel':6 'full':4 'hovercraft':2")
 
 
-@isolate_apps('tests')
+@isolate_apps('tsvector_test_app')
 class QueryTests(TestCase):
 
     def setUp(self):
@@ -148,7 +148,7 @@ class QueryTests(TestCase):
         self.assertEqual(self.ranked_search('spam'), [2, 1])
 
 
-@isolate_apps('tests')
+@isolate_apps('tsvector_test_app')
 class HeadlineTests(TestCase):
 
     def setUp(self):
