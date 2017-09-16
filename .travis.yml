@@ -20,9 +20,7 @@ install: pip install tox-travis
 script: tox
 
 after_success:
-  - coverage combine
-  - pip install codecov
-  - codecov
+  - bash <(curl -s https://codecov.io/bash)
 
 notifications:
   email: false
