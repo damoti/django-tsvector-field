@@ -1,8 +1,6 @@
-|pypi| |travis| |coverage|
-
-=====================
-django-tsvector-field
-=====================
+================================================
+django-tsvector-field |pypi| |travis| |coverage|
+================================================
 
 .. _introduction:
 
