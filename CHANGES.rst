@@ -1,3 +1,8 @@
+0.9.5
+-----
+
+* Use IS DISTINCT FROM instead of <> as comparing anything to NULL returns NULL.
+
 0.9.4
 -----
 
