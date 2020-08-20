@@ -30,12 +30,22 @@ class TriggerTests(TestCase):
                 WeightedColumn('body', 'D'),
             ], language_column='lang', language='english')
 
+        class TextDocumentMultipleWeightedColumns(models.Model):
+            title = models.CharField(max_length=128, null=True)
+            body = models.TextField(null=True)
+            search = SearchVectorField([
+                WeightedColumn('title', 'A'),
+                WeightedColumn('body', 'B'),
+            ], 'english')
+
         with DatabaseSchemaEditor(connection) as schema_editor:
             schema_editor.create_model(TextDocument)
             schema_editor.create_model(TextDocumentLanguageColumn)
+            schema_editor.create_model(TextDocumentMultipleWeightedColumns)
 
         self.create = TextDocument.objects.create
         self.lang = TextDocumentLanguageColumn.objects.create
+        self.document = TextDocumentMultipleWeightedColumns.objects.create
 
     def test_insert_and_update(self):
         doc = self.create(body="My hovercraft is full of eels.")
@@ -46,6 +56,48 @@ class TriggerTests(TestCase):
         doc.save()
         doc.refresh_from_db()
         self.assertEqual(doc.search, "'hovercraft':2")
+
+    def test_insert_title_and_update_null_body(self):
+        doc = self.document(title="My hovercraft is full of eels.", body=None)
+        doc.refresh_from_db()
+        self.assertEqual(doc.search, "'eel':6A 'full':4A 'hovercraft':2A")
+
+        doc.body = "No hovercraft for you!"
+        doc.save()
+        doc.refresh_from_db()
+        self.assertEqual(doc.search, "'eel':6A 'full':4A 'hovercraft':2A,8B")
+
+    def test_insert_all_not_null_and_update_one_to_null(self):
+        doc = self.document(title="My hovercraft is full of eels.", body='No hovercraft for you!')
+        doc.refresh_from_db()
+        self.assertEqual(doc.search, "'eel':6A 'full':4A 'hovercraft':2A,8B")
+
+        doc.body = None
+        doc.save()
+        doc.refresh_from_db()
+        self.assertEqual(doc.search, "'eel':6A 'full':4A 'hovercraft':2A")
+
+    def test_insert_all_null_and_then_update(self):
+        doc = self.document(title=None, body=None)
+        doc.refresh_from_db()
+        self.assertEqual(doc.search, '')
+
+        doc.title = "My hovercraft is full of eels."
+        doc.body = 'No hovercraft for you!'
+        doc.save()
+        doc.refresh_from_db()
+        self.assertEqual(doc.search, "'eel':6A 'full':4A 'hovercraft':2A,8B")
+
+    def test_insert_all_not_null_and_then_update_all_to_null(self):
+        doc = self.document(title="My hovercraft is full of eels.", body="No hovercraft for you!")
+        doc.refresh_from_db()
+        self.assertEqual(doc.search, "'eel':6A 'full':4A 'hovercraft':2A,8B")
+
+        doc.title = None
+        doc.body = None
+        doc.save()
+        doc.refresh_from_db()
+        self.assertEqual(doc.search, '')
 
     def test_performance_improvement_for_guarded_update(self):
 

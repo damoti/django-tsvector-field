@@ -138,10 +138,12 @@ class DatabaseTriggerEditor:
         yield " IF (NEW.{column} IS NULL) THEN do_update = true;".format(
             column=self.quote_name(field.column)
         )
+
         for column in field.columns:
-            yield " ELSIF (NEW.{column} <> OLD.{column}) THEN do_update = true;".format(
+            yield " ELSIF (NEW.{column} IS DISTINCT FROM OLD.{column}) THEN do_update = true;".format(
                 column=self.quote_name(column.name)
             )
+
         yield " END IF;"
         yield "END IF;"
 
