@@ -150,7 +150,7 @@ class SchemaEditorTests(TestCase):
                 "IF (TG_OP = 'INSERT') THEN do_update = true;",
                 "ELSIF (TG_OP = 'UPDATE') THEN",
                 ' IF (NEW."search" IS NULL) THEN do_update = true;',
-                ' ELSIF (NEW."name" <> OLD."name") THEN do_update = true;',
+                ' ELSIF (NEW."name" IS DISTINCT FROM OLD."name") THEN do_update = true;',
                 ' END IF;',
                 'END IF;',
             ]
@@ -161,9 +161,9 @@ class SchemaEditorTests(TestCase):
                 "IF (TG_OP = 'INSERT') THEN do_update = true;",
                 "ELSIF (TG_OP = 'UPDATE') THEN",
                 ' IF (NEW."search" IS NULL) THEN do_update = true;',
-                ' ELSIF (NEW."name" <> OLD."name") THEN do_update = true;',
-                ' ELSIF (NEW."title" <> OLD."title") THEN do_update = true;',
-                ' ELSIF (NEW."body" <> OLD."body") THEN do_update = true;',
+                ' ELSIF (NEW."name" IS DISTINCT FROM OLD."name") THEN do_update = true;',
+                ' ELSIF (NEW."title" IS DISTINCT FROM OLD."title") THEN do_update = true;',
+                ' ELSIF (NEW."body" IS DISTINCT FROM OLD."body") THEN do_update = true;',
                 ' END IF;',
                 'END IF;',
             ]
@@ -193,8 +193,8 @@ class SchemaEditorTests(TestCase):
             " IF (TG_OP = 'INSERT') THEN do_update = true;\n"
             " ELSIF (TG_OP = 'UPDATE') THEN\n"
             '  IF (NEW."search" IS NULL) THEN do_update = true;\n'
-            '  ELSIF (NEW."title" <> OLD."title") THEN do_update = true;\n'
-            '  ELSIF (NEW."body" <> OLD."body") THEN do_update = true;\n'
+            '  ELSIF (NEW."title" IS DISTINCT FROM OLD."title") THEN do_update = true;\n'
+            '  ELSIF (NEW."body" IS DISTINCT FROM OLD."body") THEN do_update = true;\n'
             "  END IF;\n"
             " END IF;\n"
             " IF do_update THEN\n"
